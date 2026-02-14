@@ -2,6 +2,7 @@ const TelegramBot = require("node-telegram-bot-api");
 const User = require("./models/User");
 const { validateLeetCodeUser, getRecentSubmissions } = require("./leetcode");
 const { hasSubmittedToday } = require("./timeUtils");
+const { getUpcomingContests } = require("./leetcode");
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
   polling: true
@@ -14,8 +15,8 @@ function showMenu(chatId) {
     reply_markup: {
       keyboard: [
         ["📊 Status", "🏆 Leaderboard"],
-        ["📋 List Users", "🗑️ Unregister"],
-        ["ℹ️ Help"]
+        ["📋 List Users", "📅 Upcoming Contests"],
+        ["🗑️ Unregister", "ℹ️ Help"]
       ],
       resize_keyboard: true
     }
@@ -170,10 +171,14 @@ async function handleLeaderboard(msg) {
     let solvedCount = 0;
 
     for (const submission of submissions) {
-      if (hasSubmittedToday(submission.timestamp)) {
+      if (
+        submission.statusDisplay === "Accepted" &&
+        hasSubmittedToday(submission.timestamp)
+      ) {
         solvedCount++;
       }
     }
+
 
     leaderboard.push({
       username: user.leetcodeUsername,
@@ -196,6 +201,43 @@ ${message}
   showMenu(chatId);
 }
 
+// ================= UPCOMING CONTESTS =================
+async function handleUpcomingContests(msg) {
+  const chatId = msg.chat.id;
+
+  try {
+    const contests = await getUpcomingContests();
+
+    if (!contests.length) {
+      return bot.sendMessage(chatId, "No upcoming contests found.");
+    }
+
+    let message = "📅 Upcoming Contests:\n\n";
+
+    contests.slice(0, 5).forEach(contest => {
+      const date = new Date(contest.startTime * 1000);
+
+      const istDate = date.toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+
+      message += `🏆 ${contest.title}\n🕒 ${istDate} IST\n\n`;
+    });
+
+    bot.sendMessage(chatId, message);
+
+  } catch (error) {
+    console.error("Contest fetch error:", error);
+    bot.sendMessage(chatId, "❌ Failed to fetch contests.");
+  }
+
+  showMenu(chatId);
+}
 
 // ================= BUTTON HANDLER =================
 bot.on("message", async (msg) => {
@@ -206,6 +248,7 @@ bot.on("message", async (msg) => {
   if (text === "📊 Status") return handleStatus(msg);
   if (text === "🏆 Leaderboard") return handleLeaderboard(msg);
   if (text === "📋 List Users") return handleList(msg);
+  if (text === "📅 Upcoming Contests") return handleUpcomingContests(msg);
   if (text === "🗑️ Unregister") return handleUnregister(msg);
   if (text === "ℹ️ Help") return showMenu(msg.chat.id);
 });

@@ -80,8 +80,14 @@ async function getUpcomingContests() {
     { headers: { "Content-Type": "application/json" } }
   );
 
-  return res.data.data.allContests;
+  const now = Math.floor(Date.now() / 1000);
+
+  // Filter only upcoming contests
+  return res.data.data.allContests.filter(
+    contest => contest.startTime > now
+  );
 }
+
 
 
 module.exports = {
