@@ -61,7 +61,31 @@ async function getRecentSubmissions(username) {
   }
 }
 
+async function getUpcomingContests() {
+  const query = {
+    query: `
+      query {
+        allContests {
+          title
+          startTime
+          duration
+        }
+      }
+    `
+  };
+
+  const res = await axios.post(
+    "https://leetcode.com/graphql",
+    query,
+    { headers: { "Content-Type": "application/json" } }
+  );
+
+  return res.data.data.allContests;
+}
+
+
 module.exports = {
   validateLeetCodeUser,
-  getRecentSubmissions
+  getRecentSubmissions,
+  getUpcomingContests
 };
