@@ -1,14 +1,20 @@
-require("dotenv").config();
 const express = require("express");
 const connectDB = require("./config/db");
 const { startSchedulers } = require("./scheduler");
-require("./bot");
+require("dotenv").config();
 
 const app = express();
 
 connectDB();
 startSchedulers();
 
-app.listen(3000, () => {
-  console.log("Server running...");
+// Health check route
+app.get("/", (req, res) => {
+  res.status(200).send("LeetCode Guardian Bot is Running 🚀");
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
