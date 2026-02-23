@@ -168,21 +168,20 @@ async function handleLeaderboard(msg) {
   for (const user of users) {
     const submissions = await getRecentSubmissions(user.leetcodeUsername);
 
-    let solvedCount = 0;
+    let solvedProblems = new Set();
 
     for (const submission of submissions) {
       if (
         submission.statusDisplay === "Accepted" &&
         hasSubmittedToday(submission.timestamp)
       ) {
-        solvedCount++;
+        solvedProblems.add(submission.titleSlug);
       }
     }
 
-
     leaderboard.push({
       username: user.leetcodeUsername,
-      solved: solvedCount
+      solved: solvedProblems.size
     });
   }
 

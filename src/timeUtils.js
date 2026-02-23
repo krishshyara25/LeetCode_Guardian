@@ -14,7 +14,7 @@ function getResetTime() {
 function hasSubmittedToday(timestamp) {
   const submissionTime = new Date(timestamp * 1000);
   const resetTime = getResetTime();
-  return submissionTime > resetTime;
+  return submissionTime >= resetTime;
 }
 
 module.exports = { hasSubmittedToday };

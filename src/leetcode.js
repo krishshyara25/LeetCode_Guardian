@@ -40,6 +40,7 @@ async function getRecentSubmissions(username) {
         recentSubmissionList(username: $username) {
           timestamp
           statusDisplay
+          titleSlug
         }
       }
     `,
@@ -60,6 +61,7 @@ async function getRecentSubmissions(username) {
     return [];
   }
 }
+
 
 async function getUpcomingContests() {
   const query = {
