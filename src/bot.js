@@ -10,7 +10,7 @@ const { hasSubmittedToday } = require("./timeUtils");
 const isProduction = process.env.NODE_ENV === "production";
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
-  polling: !isProduction
+  polling: true
 });
 
 
