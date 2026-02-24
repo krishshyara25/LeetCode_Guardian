@@ -1,11 +1,16 @@
 const TelegramBot = require("node-telegram-bot-api");
 const User = require("./models/User");
-const { validateLeetCodeUser, getRecentSubmissions } = require("./leetcode");
+const {
+  validateLeetCodeUser,
+  getRecentSubmissions,
+  getUpcomingContests
+} = require("./leetcode");
 const { hasSubmittedToday } = require("./timeUtils");
-const { getUpcomingContests } = require("./leetcode");
+
+const isProduction = process.env.NODE_ENV === "production";
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
-  polling: true
+  polling: !isProduction
 });
 
 
@@ -24,6 +29,30 @@ function showMenu(chatId) {
 }
 
 
+// ================= START COMMAND =================
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+
+  bot.sendMessage(chatId, `
+👋 Welcome to LeetCode Streak Guardian Bot!
+
+Track your streak.
+Compete with friends.
+Never miss a contest.
+
+Use the menu below to get started 🚀
+  `);
+
+  showMenu(chatId);
+});
+
+
+// ================= HELP =================
+bot.onText(/\/help/, (msg) => {
+  showMenu(msg.chat.id);
+});
+
+
 // ================= MOTIVATION =================
 function getMotivationMessage() {
   const messages = [
@@ -36,12 +65,6 @@ function getMotivationMessage() {
 
   return messages[Math.floor(Math.random() * messages.length)];
 }
-
-
-// ================= HELP =================
-bot.onText(/\/help/, (msg) => {
-  showMenu(msg.chat.id);
-});
 
 
 // ================= REGISTER =================
@@ -78,12 +101,13 @@ bot.onText(/\/register (.+)/, async (msg, match) => {
     showMenu(chatId);
 
   } catch (error) {
+    console.error(error);
     bot.sendMessage(chatId, "❌ Registration failed.");
   }
 });
 
 
-// ================= STATUS FUNCTION =================
+// ================= STATUS =================
 async function handleStatus(msg) {
   const chatId = msg.chat.id;
   const telegramId = msg.from.id;
@@ -99,7 +123,10 @@ async function handleStatus(msg) {
   let solvedToday = false;
 
   for (const submission of submissions) {
-    if (hasSubmittedToday(submission.timestamp)) {
+    if (
+      submission.statusDisplay === "Accepted" &&
+      hasSubmittedToday(submission.timestamp)
+    ) {
       solvedToday = true;
       break;
     }
@@ -109,7 +136,6 @@ async function handleStatus(msg) {
 📊 Status for ${user.leetcodeUsername}
 
 Solved Today: ${solvedToday ? "✅ Yes" : "❌ No"}
-Current Streak: ${user.currentStreak} days
 
 ${getMotivationMessage()}
   `);
@@ -118,7 +144,7 @@ ${getMotivationMessage()}
 }
 
 
-// ================= UNREGISTER FUNCTION =================
+// ================= UNREGISTER =================
 async function handleUnregister(msg) {
   const chatId = msg.chat.id;
   const telegramId = msg.from.id;
@@ -200,6 +226,7 @@ ${message}
   showMenu(chatId);
 }
 
+
 // ================= UPCOMING CONTESTS =================
 async function handleUpcomingContests(msg) {
   const chatId = msg.chat.id;
@@ -238,10 +265,10 @@ async function handleUpcomingContests(msg) {
   showMenu(chatId);
 }
 
+
 // ================= BUTTON HANDLER =================
 bot.on("message", async (msg) => {
   const text = msg.text;
-
   if (!text) return;
 
   if (text === "📊 Status") return handleStatus(msg);
@@ -250,6 +277,12 @@ bot.on("message", async (msg) => {
   if (text === "📅 Upcoming Contests") return handleUpcomingContests(msg);
   if (text === "🗑️ Unregister") return handleUnregister(msg);
   if (text === "ℹ️ Help") return showMenu(msg.chat.id);
+
+  // Auto-show menu for private chat if unknown message
+  if (msg.chat.type === "private") {
+    showMenu(msg.chat.id);
+  }
 });
+
 
 module.exports = bot;
