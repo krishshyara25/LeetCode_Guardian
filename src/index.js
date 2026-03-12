@@ -1,7 +1,9 @@
+// load environment variables immediately so other modules can use them
+require("dotenv").config();
+
 const express = require("express");
 const connectDB = require("./config/db");
 const { startSchedulers } = require("./scheduler");
-require("dotenv").config();
 
 const app = express();
 

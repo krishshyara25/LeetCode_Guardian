@@ -111,9 +111,10 @@ Solve before 5:30 AM IST! 💪`;
 // ================= START ALL SCHEDULERS =================
 function startSchedulers() {
 
-  // 🔔 Streak reminders
+  // 🔔 Streak reminders (IST)
+  // The first entry runs at 11 PM IST, then midnight, 1 AM and 2 AM respectively.
   const streakTimes = [
-    { cron: "0 22 * * *", label: "10:00 PM" },
+    { cron: "0 23 * * *", label: "11:00 PM" },
     { cron: "0 0 * * *", label: "12:00 AM" },
     { cron: "0 1 * * *", label: "1:00 AM" },
     { cron: "0 2 * * *", label: "2:00 AM" }

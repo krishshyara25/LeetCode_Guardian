@@ -7,6 +7,12 @@ const {
 } = require("./leetcode");
 const { hasSubmittedToday } = require("./timeUtils");
 
+// ensure the token is available as early as possible
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+  console.error("EFATAL: Telegram Bot Token not provided! check your .env or environment variables");
+  process.exit(1);
+}
+
 const isProduction = process.env.NODE_ENV === "production";
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
