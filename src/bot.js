@@ -1,20 +1,25 @@
 const TelegramBot = require("node-telegram-bot-api");
 const User = require("./models/User");
+
 const {
   validateLeetCodeUser,
   getRecentSubmissions,
   getUpcomingContests
 } = require("./leetcode");
+
 const { hasSubmittedToday } = require("./timeUtils");
 
-// ensure the token is available as early as possible
-if (!process.env.TELEGRAM_BOT_TOKEN) {
-  console.error("EFATAL: Telegram Bot Token not provided! check your .env or environment variables");
+
+// ================= TOKEN =================
+const token = process.env.TELEGRAM_BOT_TOKEN;
+
+if (!token) {
+  console.error("❌ TELEGRAM_BOT_TOKEN missing!");
   process.exit(1);
 }
 
-const isProduction = process.env.NODE_ENV === "production";
 
+// ================= BOT =================
 const bot = new TelegramBot(token);
 
 
@@ -33,7 +38,7 @@ function showMenu(chatId) {
 }
 
 
-// ================= START COMMAND =================
+// ================= START =================
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
 
@@ -42,7 +47,7 @@ bot.onText(/\/start/, (msg) => {
 
 Track your streak.
 Compete with friends.
-Never miss a contest.
+Never miss contests.
 
 Use the menu below to get started 🚀
   `);
@@ -73,24 +78,33 @@ function getMotivationMessage() {
 
 // ================= REGISTER =================
 bot.onText(/\/register (.+)/, async (msg, match) => {
+
   const chatId = msg.chat.id;
   const telegramId = msg.from.id;
   const telegramUsername = msg.from.username || "unknown";
+
   const leetcodeUsername = match[1].trim();
 
   try {
-    const isValid = await validateLeetCodeUser(leetcodeUsername);
+
+    const isValid =
+      await validateLeetCodeUser(leetcodeUsername);
 
     if (!isValid) {
-      return bot.sendMessage(chatId,
-        `❌ LeetCode username "${leetcodeUsername}" does not exist.`);
+      return bot.sendMessage(
+        chatId,
+        `❌ LeetCode username "${leetcodeUsername}" does not exist.`
+      );
     }
 
-    const existing = await User.findOne({ leetcodeUsername });
+    const existing =
+      await User.findOne({ leetcodeUsername });
 
     if (existing) {
-      return bot.sendMessage(chatId,
-        `⚠️ "${leetcodeUsername}" is already registered.`);
+      return bot.sendMessage(
+        chatId,
+        `⚠️ "${leetcodeUsername}" is already registered.`
+      );
     }
 
     await User.create({
@@ -99,194 +113,311 @@ bot.onText(/\/register (.+)/, async (msg, match) => {
       leetcodeUsername
     });
 
-    bot.sendMessage(chatId,
-      `✅ Registered successfully: ${leetcodeUsername}`);
+    bot.sendMessage(
+      chatId,
+      `✅ Registered successfully: ${leetcodeUsername}`
+    );
 
     showMenu(chatId);
 
   } catch (error) {
-    console.error(error);
-    bot.sendMessage(chatId, "❌ Registration failed.");
+
+    console.error("Register Error:", error);
+
+    bot.sendMessage(
+      chatId,
+      "❌ Registration failed."
+    );
   }
 });
 
 
 // ================= STATUS =================
 async function handleStatus(msg) {
+
   const chatId = msg.chat.id;
   const telegramId = msg.from.id;
 
-  const user = await User.findOne({ telegramId });
+  try {
 
-  if (!user) {
-    return bot.sendMessage(chatId, "❌ You are not registered.");
-  }
+    const user =
+      await User.findOne({ telegramId });
 
-  const submissions = await getRecentSubmissions(user.leetcodeUsername);
-
-  let solvedToday = false;
-
-  for (const submission of submissions) {
-    if (
-      submission.statusDisplay === "Accepted" &&
-      hasSubmittedToday(submission.timestamp)
-    ) {
-      solvedToday = true;
-      break;
+    if (!user) {
+      return bot.sendMessage(
+        chatId,
+        "❌ You are not registered."
+      );
     }
-  }
 
-  bot.sendMessage(chatId, `
+    const submissions =
+      await getRecentSubmissions(
+        user.leetcodeUsername
+      );
+
+    let solvedToday = false;
+
+    for (const submission of submissions) {
+
+      if (
+        submission.statusDisplay === "Accepted" &&
+        hasSubmittedToday(submission.timestamp)
+      ) {
+        solvedToday = true;
+        break;
+      }
+    }
+
+    bot.sendMessage(chatId, `
 📊 Status for ${user.leetcodeUsername}
 
-Solved Today: ${solvedToday ? "✅ Yes" : "❌ No"}
+Solved Today:
+${solvedToday ? "✅ Yes" : "❌ No"}
 
 ${getMotivationMessage()}
-  `);
+    `);
 
-  showMenu(chatId);
+    showMenu(chatId);
+
+  } catch (error) {
+
+    console.error("Status Error:", error);
+
+    bot.sendMessage(
+      chatId,
+      "❌ Failed to fetch status."
+    );
+  }
 }
 
 
 // ================= UNREGISTER =================
 async function handleUnregister(msg) {
+
   const chatId = msg.chat.id;
   const telegramId = msg.from.id;
 
-  const user = await User.findOneAndDelete({ telegramId });
+  try {
 
-  if (!user) {
-    return bot.sendMessage(chatId, "❌ You are not registered.");
+    const user =
+      await User.findOneAndDelete({ telegramId });
+
+    if (!user) {
+      return bot.sendMessage(
+        chatId,
+        "❌ You are not registered."
+      );
+    }
+
+    bot.sendMessage(
+      chatId,
+      "🗑️ You have been removed successfully."
+    );
+
+    showMenu(chatId);
+
+  } catch (error) {
+
+    console.error("Unregister Error:", error);
+
+    bot.sendMessage(
+      chatId,
+      "❌ Failed to unregister."
+    );
   }
-
-  bot.sendMessage(chatId, "🗑️ You have been removed successfully.");
-
-  showMenu(chatId);
 }
 
 
 // ================= LIST USERS =================
 async function handleList(msg) {
+
   const chatId = msg.chat.id;
 
-  const users = await User.find();
+  try {
 
-  if (users.length === 0) {
-    return bot.sendMessage(chatId, "No registered users.");
-  }
+    const users = await User.find();
 
-  const list = users.map(u => `• ${u.leetcodeUsername}`).join("\n");
+    if (users.length === 0) {
+      return bot.sendMessage(
+        chatId,
+        "No registered users."
+      );
+    }
 
-  bot.sendMessage(chatId, `
+    const list = users
+      .map(u => `• ${u.leetcodeUsername}`)
+      .join("\n");
+
+    bot.sendMessage(chatId, `
 📋 Registered Users:
 
 ${list}
-  `);
+    `);
 
-  showMenu(chatId);
+    showMenu(chatId);
+
+  } catch (error) {
+
+    console.error("List Error:", error);
+
+    bot.sendMessage(
+      chatId,
+      "❌ Failed to fetch users."
+    );
+  }
 }
 
 
 // ================= LEADERBOARD =================
 async function handleLeaderboard(msg) {
+
   const chatId = msg.chat.id;
 
-  const users = await User.find();
+  try {
 
-  let leaderboard = [];
+    const users = await User.find();
 
-  for (const user of users) {
-    const submissions = await getRecentSubmissions(user.leetcodeUsername);
+    let leaderboard = [];
 
-    let solvedProblems = new Set();
+    for (const user of users) {
 
-    for (const submission of submissions) {
-      if (
-        submission.statusDisplay === "Accepted" &&
-        hasSubmittedToday(submission.timestamp)
-      ) {
-        solvedProblems.add(submission.titleSlug);
+      const submissions =
+        await getRecentSubmissions(
+          user.leetcodeUsername
+        );
+
+      let solvedProblems = new Set();
+
+      for (const submission of submissions) {
+
+        if (
+          submission.statusDisplay === "Accepted" &&
+          hasSubmittedToday(submission.timestamp)
+        ) {
+          solvedProblems.add(submission.titleSlug);
+        }
       }
+
+      leaderboard.push({
+        username: user.leetcodeUsername,
+        solved: solvedProblems.size
+      });
     }
 
-    leaderboard.push({
-      username: user.leetcodeUsername,
-      solved: solvedProblems.size
-    });
-  }
+    leaderboard.sort((a, b) => b.solved - a.solved);
 
-  leaderboard.sort((a, b) => b.solved - a.solved);
+    const message = leaderboard
+      .map((u, index) =>
+        `${index + 1}. ${u.username} — ${u.solved} solved`
+      )
+      .join("\n");
 
-  const message = leaderboard.map((u, index) =>
-    `${index + 1}. ${u.username} — ${u.solved} solved`
-  ).join("\n");
-
-  bot.sendMessage(chatId, `
+    bot.sendMessage(chatId, `
 🏆 Today's Leaderboard:
 
 ${message}
-  `);
+    `);
 
-  showMenu(chatId);
+    showMenu(chatId);
+
+  } catch (error) {
+
+    console.error("Leaderboard Error:", error);
+
+    bot.sendMessage(
+      chatId,
+      "❌ Failed to load leaderboard."
+    );
+  }
 }
 
 
 // ================= UPCOMING CONTESTS =================
 async function handleUpcomingContests(msg) {
+
   const chatId = msg.chat.id;
 
   try {
-    const contests = await getUpcomingContests();
+
+    const contests =
+      await getUpcomingContests();
 
     if (!contests.length) {
-      return bot.sendMessage(chatId, "No upcoming contests found.");
+      return bot.sendMessage(
+        chatId,
+        "No upcoming contests found."
+      );
     }
 
-    let message = "📅 Upcoming Contests:\n\n";
+    let message =
+      "📅 Upcoming Contests:\n\n";
 
     contests.slice(0, 5).forEach(contest => {
-      const date = new Date(contest.startTime * 1000);
 
-      const istDate = date.toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        hour: "2-digit",
-        minute: "2-digit"
-      });
+      const date =
+        new Date(contest.startTime * 1000);
 
-      message += `🏆 ${contest.title}\n🕒 ${istDate} IST\n\n`;
+      const istDate =
+        date.toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+
+      message +=
+        `🏆 ${contest.title}\n🕒 ${istDate} IST\n\n`;
     });
 
     bot.sendMessage(chatId, message);
 
-  } catch (error) {
-    console.error("Contest fetch error:", error);
-    bot.sendMessage(chatId, "❌ Failed to fetch contests.");
-  }
+    showMenu(chatId);
 
-  showMenu(chatId);
+  } catch (error) {
+
+    console.error("Contest Error:", error);
+
+    bot.sendMessage(
+      chatId,
+      "❌ Failed to fetch contests."
+    );
+  }
 }
 
 
 // ================= BUTTON HANDLER =================
 bot.on("message", async (msg) => {
+
   const text = msg.text;
+
   if (!text) return;
 
-  if (text === "📊 Status") return handleStatus(msg);
-  if (text === "🏆 Leaderboard") return handleLeaderboard(msg);
-  if (text === "📋 List Users") return handleList(msg);
-  if (text === "📅 Upcoming Contests") return handleUpcomingContests(msg);
-  if (text === "🗑️ Unregister") return handleUnregister(msg);
-  if (text === "ℹ️ Help") return showMenu(msg.chat.id);
+  if (text === "📊 Status")
+    return handleStatus(msg);
 
-  // Auto-show menu for private chat if unknown message
+  if (text === "🏆 Leaderboard")
+    return handleLeaderboard(msg);
+
+  if (text === "📋 List Users")
+    return handleList(msg);
+
+  if (text === "📅 Upcoming Contests")
+    return handleUpcomingContests(msg);
+
+  if (text === "🗑️ Unregister")
+    return handleUnregister(msg);
+
+  if (text === "ℹ️ Help")
+    return showMenu(msg.chat.id);
+
+  // Unknown text in private chat
   if (msg.chat.type === "private") {
     showMenu(msg.chat.id);
   }
 });
 
 
+// ================= EXPORT =================
 module.exports = bot;
