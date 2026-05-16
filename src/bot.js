@@ -15,9 +15,7 @@ if (!process.env.TELEGRAM_BOT_TOKEN) {
 
 const isProduction = process.env.NODE_ENV === "production";
 
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
-  polling: true
-});
+const bot = new TelegramBot(token);
 
 
 // ================= MENU FUNCTION =================
